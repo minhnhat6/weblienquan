@@ -136,6 +136,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: { user } });
 
   } catch (error) {
+    // Log detailed error for debugging
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('[REGISTER ERROR]', {
+      message: errorMessage,
+      stack: errorStack,
+      name: error instanceof Error ? error.name : 'Unknown',
+    });
+    
     logger.error('Register error', error as Error, { action: 'register' });
     
     // Record failed attempt for rate limiting
@@ -147,6 +156,10 @@ export async function POST(request: NextRequest) {
       return errorResponse('Username or email already registered', 409);
     }
 
-    return errorResponse(ERROR.REGISTRATION_FAILED, 500);
+    // Return more specific error in development/debugging
+    const debugError = process.env.NODE_ENV === 'development' 
+      ? errorMessage 
+      : ERROR.REGISTRATION_FAILED;
+    return errorResponse(debugError, 500);
   }
 }

@@ -68,15 +68,16 @@ export async function middleware(req: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   
-  // Content Security Policy with nonce
-  // Development mode needs more permissive CSP for hot reload
+  // Content Security Policy
+  // Next.js on Vercel uses dynamic script chunks that don't support strict nonce-based CSP
+  // Using a balanced approach: self + unsafe-inline for scripts (required for Next.js hydration)
   const csp = isDev
     ? [
         "default-src 'self'",
-        `script-src 'self' 'nonce-${nonce}' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com`,
-        "style-src 'self' 'unsafe-inline'",
+        "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https:",
-        "font-src 'self' data:",
+        "font-src 'self' data: https://fonts.gstatic.com",
         "connect-src 'self' ws: wss: https://challenges.cloudflare.com",
         "frame-src https://challenges.cloudflare.com",
         "frame-ancestors 'none'",
@@ -85,10 +86,10 @@ export async function middleware(req: NextRequest) {
       ].join('; ')
     : [
         "default-src 'self'",
-        `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://challenges.cloudflare.com`,
-        "style-src 'self' 'unsafe-inline'", // Tailwind requires unsafe-inline for styles
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https:",
-        "font-src 'self' data:",
+        "font-src 'self' data: https://fonts.gstatic.com",
         "connect-src 'self' https://challenges.cloudflare.com",
         "frame-src https://challenges.cloudflare.com",
         "frame-ancestors 'none'",

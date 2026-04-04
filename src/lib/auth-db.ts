@@ -126,7 +126,10 @@ async function giveReferralBonus(referrerCode: string, newUsername: string): Pro
 export async function registerUser(data: RegisterData): Promise<SafeUserData> {
   const { username, email, password, referredBy } = data;
 
+  console.log('[REGISTER] Starting registration for:', { username, email });
+
   const existingUser = await findExistingUser(username, email);
+  console.log('[REGISTER] Existing user check:', { found: !!existingUser });
 
   if (existingUser) {
     const field = existingUser.username === username ? 'Username' : 'Email';
@@ -135,23 +138,30 @@ export async function registerUser(data: RegisterData): Promise<SafeUserData> {
 
   const passwordHash = await hashPassword(password);
   const referralCode = generateReferralCode(username);
+  console.log('[REGISTER] Generated referral code:', referralCode);
 
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      passwordHash,
-      referralCode,
-      referredBy: referredBy || null,
-    },
-    select: SAFE_USER_SELECT,
-  });
+  try {
+    const user = await prisma.user.create({
+      data: {
+        username,
+        email,
+        passwordHash,
+        referralCode,
+        referredBy: referredBy || null,
+      },
+      select: SAFE_USER_SELECT,
+    });
+    console.log('[REGISTER] User created:', { id: user.id, username: user.username });
 
-  if (referredBy) {
-    await giveReferralBonus(referredBy, username);
+    if (referredBy) {
+      await giveReferralBonus(referredBy, username);
+    }
+
+    return toSafeUserData(user);
+  } catch (dbError) {
+    console.error('[REGISTER] Database error:', dbError);
+    throw dbError;
   }
-
-  return toSafeUserData(user);
 }
 
 /** Authenticate user and return safe user data */

@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===== USER MODEL =====
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String // bcrypt hash
+  role         String   @default("user") // 'user' | 'admin'
+  balance      Decimal  @default(0) @db.Decimal(12, 2)
+  referralCode String   @unique
+  referredBy   String?
+  discount     Int      @default(0)
+  spinTickets  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  orders           Order[]
+  transactions     Transaction[]
+  rechargeRequests RechargeRequest[]
+  consignments     ConsignmentItem[]
+
+  @@index([username])
+  @@index([email])
+  @@map("users")
+}
+
+// ===== PRODUCT MODEL =====
+model Product {
+  id            Int     @id @default(autoincrement())
+  name          String
+  description   String  @db.Text
+  price         Decimal @db.Decimal(12, 2)
+  originalPrice Decimal @db.Decimal(12, 2)
+  image         String
+  categoryId    Int
+  totalStock    Int     @default(0)
+  soldCount     Int     @default(0)
+  isHot         Boolean @default(false)
+  discount      Int     @default(0)
+
+  // Game stats (optional, for gaming accounts)
+  winRate      Float?
+  totalGold    Int?
+  totalMatches Int?
+  heroes       Int?
+  skins        Int?
+  gems         Int?
+  rank         String?
+  heroImages   String[] @default([])
+  skinImages   String[] @default([])
+  gemImages    String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  category      Category       @relation(fields: [categoryId], references: [id])
+  accountStocks AccountStock[]
+  orders        Order[]
+
+  @@index([categoryId])
+  @@index([isHot])
+  @@map("products")
+}
+
+// ===== CATEGORY MODEL =====
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  icon      String
+  createdAt DateTime @default(now())
+
+  products Product[]
+
+  @@map("categories")
+}
+
+// ===== ACCOUNT STOCK MODEL =====
+model AccountStock {
+  id          Int       @id @default(autoincrement())
+  productId   Int
+  accountData String    @db.Text // JSON string with account credentials
+  isSold      Boolean   @default(false)
+  soldAt      DateTime?
+  orderId     String?
+  createdAt   DateTime  @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([productId, isSold])
+  @@map("account_stocks")
+}
+
+// ===== ORDER MODEL =====
+model Order {
+  id          String   @id @default(uuid())
+  userId      String
+  productId   Int
+  productName String
+  accountData String   @db.Text
+  amount      Decimal  @db.Decimal(12, 2)
+  status      String   @default("pending") // 'pending' | 'success' | 'failed'
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+// ===== TRANSACTION MODEL =====
+model Transaction {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String // 'recharge' | 'purchase' | 'referral' | 'spin'
+  amount      Decimal  @db.Decimal(12, 2)
+  description String   @db.Text
+  status      String   @default("pending") // 'pending' | 'success'
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+// ===== RECHARGE REQUEST MODEL =====
+model RechargeRequest {
+  id            String    @id @default(uuid())
+  userId        String
+  amount        Decimal   @db.Decimal(12, 2)
+  paymentMethod String // 'momo' | 'bank' | 'card'
+  receiptUrl    String? // Upload receipt image
+  status        String    @default("pending") // 'pending' | 'approved' | 'rejected'
+  reviewedBy    String? // Admin user ID
+  reviewedAt    DateTime?
+  rejectionNote String?   @db.Text
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("recharge_requests")
+}
+
+// ===== CONSIGNMENT ITEM MODEL =====
+model ConsignmentItem {
+  id          String    @id @default(uuid())
+  userId      String
+  title       String
+  description String    @db.Text
+  price       Decimal   @db.Decimal(12, 2)
+  images      String[]  @default([])
+  accountData String?   @db.Text
+  status      String    @default("pending") // 'pending' | 'approved' | 'rejected' | 'sold'
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("consignment_items")
+}
+
+// ===== ADMIN SESSION MODEL =====
+model AdminSession {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  username  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+// ===== AUDIT LOG MODEL =====
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String // 'login' | 'order_created' | 'balance_change' | etc.
+  details   String   @db.Text // JSON string
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ===== BLOG POST MODEL =====
+model BlogPost {
+  id        Int      @id @default(autoincrement())
+  title     String
+  slug      String   @unique
+  excerpt   String   @db.Text
+  content   String   @db.Text
+  image     String
+  author    String?
+  category  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@map("blog_posts")
+}

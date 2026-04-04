@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: weblienquan_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: weblienquan
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-localdev123}
+      POSTGRES_DB: weblienquan_prod
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U weblienquan"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Next.js Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: weblienquan_app
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://weblienquan:${DB_PASSWORD:-localdev123}@db:5432/weblienquan_prod
+      SESSION_SECRET: ${SESSION_SECRET:-devsecret123456789012345678901234}
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

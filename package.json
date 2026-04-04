@@ -1,0 +1,54 @@
+{
+  "name": "weblienquan",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "optimize-images": "node scripts/optimize-images.cjs"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.6.0",
+    "bcryptjs": "^3.0.3",
+    "ioredis": "^5.10.1",
+    "next": "16.2.1",
+    "otplib": "^13.4.0",
+    "pg": "^8.20.0",
+    "qrcode": "^1.5.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@prisma/client": "^7.6.0",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "agentation": "^3.0.2",
+    "dotenv": "^17.3.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "eslint-plugin-security": "^4.0.0",
+    "jsdom": "^26.1.0",
+    "prisma": "^7.6.0",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4",
+    "tsx": "^4.21.0",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

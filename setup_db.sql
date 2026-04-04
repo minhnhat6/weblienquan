@@ -1,0 +1,3 @@
+CREATE USER thaihieu WITH PASSWORD 'dev123' CREATEDB;
+ALTER USER thaihieu WITH SUPERUSER;
+CREATE DATABASE weblienquan_dev OWNER thaihieu;

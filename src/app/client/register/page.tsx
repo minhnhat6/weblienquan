@@ -26,8 +26,8 @@ export default function RegisterPage() {
       return;
     }
 
-    if (password.length < 8) {
-      showToast('Mật khẩu tối thiểu 8 ký tự', 'error');
+    if (password.length < 6) {
+      showToast('Mật khẩu tối thiểu 6 ký tự', 'error');
       return;
     }
 
@@ -71,11 +71,11 @@ export default function RegisterPage() {
               <label className="form-label">Mật khẩu</label>
               <input type="password" className="form-input" value={password}
                 onChange={e => setPassword(e.target.value)}
-                placeholder="Tối thiểu 8 ký tự, gồm chữ hoa, thường, số, đặc biệt" required minLength={8}
+                placeholder="Tối thiểu 6 ký tự" required minLength={6}
                 disabled={isSubmitting} />
-              {password && password.length < 8 && (
+              {password && password.length < 6 && (
                 <p style={{ color: 'var(--accent-orange)', fontSize: 12, marginTop: 4 }}>
-                  Mật khẩu cần tối thiểu 8 ký tự
+                  Mật khẩu cần tối thiểu 6 ký tự
                 </p>
               )}
             </div>

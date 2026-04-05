@@ -192,7 +192,7 @@ export function sanitizeInput(input: string): string {
 
 const USERNAME_MIN_LENGTH = 3;
 const USERNAME_MAX_LENGTH = 20;
-const PASSWORD_MIN_LENGTH = 8;  // Increased from 6
+const PASSWORD_MIN_LENGTH = 6;
 const PASSWORD_MAX_LENGTH = 64;
 const EMAIL_MAX_LENGTH = 254;
 const EMAIL_LOCAL_MAX_LENGTH = 64;
@@ -230,33 +230,17 @@ export function validateEmail(email: string): string | null {
 }
 
 /**
- * Validate password strength
+ * Validate password
  * Requirements:
- * - Minimum 8 characters
+ * - Minimum 6 characters
  * - Maximum 64 characters
- * - At least 1 uppercase letter
- * - At least 1 lowercase letter
- * - At least 1 number
- * - At least 1 special character
  */
 export function validatePassword(password: string): string | null {
   if (!password || password.length < PASSWORD_MIN_LENGTH) {
-    return 'Mật khẩu tối thiểu 8 ký tự';
+    return 'Mật khẩu tối thiểu 6 ký tự';
   }
   if (password.length > PASSWORD_MAX_LENGTH) {
     return 'Mật khẩu tối đa 64 ký tự';
-  }
-  if (!/[A-Z]/.test(password)) {
-    return 'Mật khẩu phải có ít nhất 1 chữ in hoa';
-  }
-  if (!/[a-z]/.test(password)) {
-    return 'Mật khẩu phải có ít nhất 1 chữ thường';
-  }
-  if (!/[0-9]/.test(password)) {
-    return 'Mật khẩu phải có ít nhất 1 số';
-  }
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    return 'Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)';
   }
   return null;
 }

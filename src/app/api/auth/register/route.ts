@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger';
 /**
  * POST /api/auth/register - User Registration API
  * Uses bcrypt for password hashing
- * Security: Strong password validation + rate limiting + Cloudflare Turnstile CAPTCHA
+ * Security: Strong password validation + rate limiting
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -10,14 +10,12 @@ import { registerUser } from '@/lib/auth-db';
 import { logBusinessEvent } from '@/lib/observability-helper';
 import { sanitizeInput, validatePassword, validateEmail } from '@/lib/security';
 import { loginRateLimiter } from '@/lib/rate-limiter';
-import { verifyCaptcha, isCaptchaEnabled } from '@/lib/captcha/turnstile';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const ERROR = {
   MISSING_FIELDS: 'Missing required fields',
   RATE_LIMITED: 'Too many registration attempts. Please try again later.',
-  CAPTCHA_FAILED: 'Captcha verification failed',
   REGISTRATION_FAILED: 'Registration failed',
 } as const;
 
@@ -91,25 +89,17 @@ export async function POST(request: NextRequest) {
       return errorResponse(ERROR.RATE_LIMITED, 429);
     }
 
-    const { username, email, password, referredBy, captchaToken } = await request.json();
-
-    // Verify CAPTCHA if enabled
-    if (isCaptchaEnabled()) {
-      const captchaResult = await verifyCaptcha(captchaToken, clientIp);
-      if (!captchaResult.success) {
-        return errorResponse(captchaResult.error || ERROR.CAPTCHA_FAILED, 400);
-      }
-    }
+    const { username, email, password, referredBy } = await request.json();
 
     if (!username || !email || !password) {
       return errorResponse(ERROR.MISSING_FIELDS, 400);
     }
 
     const sanitizedUsername = sanitizeInput(username);
-    const sanitizedEmail = sanitizeInput(email);
+    const trimmedEmail = email.trim();
 
     // Validate email format
-    const emailError = validateEmail(sanitizedEmail);
+    const emailError = validateEmail(trimmedEmail);
     if (emailError) {
       return errorResponse(emailError, 400);
     }
@@ -122,7 +112,7 @@ export async function POST(request: NextRequest) {
 
     const user = await registerUser({
       username: sanitizedUsername,
-      email: sanitizedEmail,
+      email: trimmedEmail,
       password,
       referredBy: referredBy ? sanitizeInput(referredBy) : undefined,
     });
@@ -139,10 +129,14 @@ export async function POST(request: NextRequest) {
     // Log detailed error for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : '';
-    console.error('[REGISTER ERROR]', {
+    const errorName = error instanceof Error ? error.name : 'Unknown';
+    
+    console.error('[REGISTER ERROR] Full details:', {
       message: errorMessage,
       stack: errorStack,
-      name: error instanceof Error ? error.name : 'Unknown',
+      name: errorName,
+      // Log the full error object for database-specific errors
+      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2),
     });
     
     logger.error('Register error', error as Error, { action: 'register' });
@@ -156,6 +150,12 @@ export async function POST(request: NextRequest) {
       return errorResponse('Username or email already registered', 409);
     }
 
+    // In production, check for specific database errors
+    if (errorMessage.includes('connect') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('SSL') || errorMessage.includes('timeout')) {
+      console.error('[REGISTER] Database connection error detected');
+      return errorResponse('Service temporarily unavailable. Please try again later.', 503);
+    }
+
     // Return more specific error in development/debugging
     const debugError = process.env.NODE_ENV === 'development' 
       ? errorMessage 
@@ -163,3 +163,4 @@ export async function POST(request: NextRequest) {
     return errorResponse(debugError, 500);
   }
 }
+

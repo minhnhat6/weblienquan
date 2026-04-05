@@ -1,6 +1,7 @@
 /**
  * Prisma Client Singleton
  * Prevents multiple instances during development (hot reload)
+ * Configured for Supabase + Vercel serverless deployment
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -17,7 +18,16 @@ const LOG_CONFIG = isDevelopment ? ['query', 'error', 'warn'] : ['error'];
 
 // ─── Singleton Setup ───────────────────────────────────────────────────────────
 
-const pool = new Pool({ connectionString });
+const pool = new Pool({
+  connectionString,
+  // Supabase requires SSL in production
+  ssl: isProduction ? { rejectUnauthorized: false } : undefined,
+  // Vercel serverless: keep pool small to avoid connection exhaustion
+  max: isProduction ? 5 : 10,
+  idleTimeoutMillis: isProduction ? 30000 : 60000,
+  connectionTimeoutMillis: 10000,
+});
+
 const adapter = new PrismaPg(pool);
 
 const globalForPrisma = globalThis as unknown as {

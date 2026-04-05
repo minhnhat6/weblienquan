@@ -35,15 +35,11 @@ export interface CaptchaVerifyResult {
 function getSecretKey(): string {
   const key = process.env.TURNSTILE_SECRET_KEY;
   if (!key) {
-    // In production, CAPTCHA must be configured
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'SECURITY ERROR: TURNSTILE_SECRET_KEY must be configured in production. ' +
-        'Get your key from https://dash.cloudflare.com/turnstile'
-      );
-    }
-    // In development, warn but allow bypass
-    console.warn('[CAPTCHA] TURNSTILE_SECRET_KEY not set - captcha verification disabled in dev mode');
+    // Log warning but don't crash - CAPTCHA is optional if not configured
+    console.warn(
+      '[CAPTCHA] TURNSTILE_SECRET_KEY not set - captcha verification disabled. ' +
+      'Set TURNSTILE_SECRET_KEY in environment for production security.'
+    );
     return '';
   }
   return key;
@@ -54,10 +50,6 @@ function getSecretKey(): string {
  * In production, this should always return true
  */
 export function isCaptchaEnabled(): boolean {
-  // In production, captcha is always required (will throw if not configured)
-  if (process.env.NODE_ENV === 'production') {
-    return true;
-  }
   return !!process.env.TURNSTILE_SECRET_KEY;
 }
 

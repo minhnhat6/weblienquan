@@ -84,6 +84,11 @@ function createFetchWrapper(originalFetch: typeof fetch) {
       logPerfEvent({ kind: 'http', path, method, status: response.status, ok: response.ok, durationMs });
 
       if (!response.ok) {
+        // Don't report telemetry endpoint failures to itself (prevents infinite loop)
+        if (path.includes('/api/telemetry/')) {
+          return response;
+        }
+
         const errPayload: ErrorPayload = {
           type: 'http.error',
           message: `HTTP ${response.status} at ${path}`,

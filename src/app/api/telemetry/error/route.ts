@@ -1,11 +1,12 @@
 /**
  * Telemetry Error API - Collects client-side errors for debugging
  * Security: Rate limited to prevent log spam
+ * 
+ * Note: Uses console.log for structured logging (captured by Vercel logs)
+ * instead of filesystem writes (which fail on Vercel's read-only FS).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { appendFile, mkdir } from 'fs/promises';
-import { join } from 'path';
 import { telemetryRateLimiter } from '@/lib/rate-limiter';
 import { logger } from '@/lib/logger';
 
@@ -21,8 +22,6 @@ interface ErrorPayload {
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
-const LOGS_DIR = '.runtime-logs';
-const ERROR_LOG_FILE = 'client-errors.log';
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_STACK_LENGTH = 5000;
 const MAX_REQUEST_BODY_SIZE = 16 * 1024; // 16KB max request body
@@ -32,7 +31,7 @@ const MAX_REQUEST_BODY_SIZE = 16 * 1024; // 16KB max request body
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   const realIp = request.headers.get('x-real-ip');
-  
+
   if (forwarded) {
     return forwarded.split(',')[0].trim();
   }
@@ -55,7 +54,7 @@ function sanitizePayload(body: ErrorPayload): ErrorPayload {
 function sanitizeMeta(meta: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
   const keys = Object.keys(meta).slice(0, 20); // Limit number of keys
-  
+
   for (const key of keys) {
     const value = meta[key];
     if (typeof value === 'string') {
@@ -64,19 +63,8 @@ function sanitizeMeta(meta: Record<string, unknown>): Record<string, unknown> {
       sanitized[key] = value;
     }
   }
-  
-  return sanitized;
-}
 
-function formatLogEntry(body: ErrorPayload): string {
-  return JSON.stringify({
-    ts: new Date().toISOString(),
-    type: body.type,
-    message: body.message,
-    stack: body.stack,
-    route: body.route,
-    meta: body.meta,
-  });
+  return sanitized;
 }
 
 // ─── POST Handler ──────────────────────────────────────────────────────────────
@@ -86,9 +74,9 @@ export async function POST(request: NextRequest) {
     // Rate limit by IP to prevent log spam/DoS
     const clientIp = getClientIp(request);
     const rateLimit = telemetryRateLimiter.check(`telemetry:${clientIp}`);
-    
+
     if (!rateLimit.allowed) {
-      logger.warn('Telemetry rate limit exceeded', { 
+      logger.warn('Telemetry rate limit exceeded', {
         metadata: { ip: clientIp },
         action: 'telemetry_rate_limited'
       });
@@ -113,10 +101,18 @@ export async function POST(request: NextRequest) {
 
     const body = (await request.json()) as ErrorPayload;
     const sanitizedBody = sanitizePayload(body);
-    const logsDir = join(process.cwd(), LOGS_DIR);
 
-    await mkdir(logsDir, { recursive: true });
-    await appendFile(join(logsDir, ERROR_LOG_FILE), `${formatLogEntry(sanitizedBody)}\n`, 'utf8');
+    // Log to stdout as structured JSON - Vercel captures this automatically
+    console.log(JSON.stringify({
+      _tag: 'CLIENT_ERROR',
+      ts: new Date().toISOString(),
+      ip: clientIp,
+      type: sanitizedBody.type,
+      message: sanitizedBody.message,
+      stack: sanitizedBody.stack,
+      route: sanitizedBody.route,
+      meta: sanitizedBody.meta,
+    }));
 
     return NextResponse.json({ success: true });
 

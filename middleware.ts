@@ -86,8 +86,7 @@ export async function middleware(req: NextRequest) {
       ].join('; ')
     : [
         "default-src 'self'",
-        // Production: strict-dynamic allows nonce-verified scripts to load other scripts
-        `script-src 'self' 'unsafe-inline' 'nonce-${nonce}' 'strict-dynamic'`,
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https:",
         "font-src 'self' data: https://fonts.gstatic.com",
@@ -97,7 +96,6 @@ export async function middleware(req: NextRequest) {
         "form-action 'self'",
         "object-src 'none'",
         "upgrade-insecure-requests",
-        "block-all-mixed-content",
       ].join('; ');
   
   response.headers.set('Content-Security-Policy', csp);

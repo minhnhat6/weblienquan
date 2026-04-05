@@ -232,16 +232,32 @@ export function validateEmail(email: string): string | null {
 /**
  * Validate password
  * Requirements:
- * - Minimum 6 characters
- * - Maximum 64 characters
+ * - Minimum 8 characters (industry standard)
+ * - Maximum 64 characters (prevent DoS via bcrypt)
+ * - Must contain at least one uppercase, lowercase, number, and special char
  */
 export function validatePassword(password: string): string | null {
-  if (!password || password.length < PASSWORD_MIN_LENGTH) {
-    return 'Mật khẩu tối thiểu 6 ký tự';
+  if (!password || password.length < 8) {
+    return 'Mật khẩu tối thiểu 8 ký tự';
   }
   if (password.length > PASSWORD_MAX_LENGTH) {
     return 'Mật khẩu tối đa 64 ký tự';
   }
+  
+  // Require complexity for better security
+  if (!/[a-z]/.test(password)) {
+    return 'Mật khẩu phải chứa chữ thường';
+  }
+  if (!/[A-Z]/.test(password)) {
+    return 'Mật khẩu phải chứa chữ in hoa';
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'Mật khẩu phải chứa số';
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return 'Mật khẩu phải chứa ký tự đặc biệt (!@#$%^&*...)';
+  }
+  
   return null;
 }
 

@@ -69,12 +69,12 @@ export async function middleware(req: NextRequest) {
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
   
   // Content Security Policy
-  // Next.js on Vercel uses dynamic script chunks that don't support strict nonce-based CSP
-  // Using a balanced approach: self + unsafe-inline for scripts (required for Next.js hydration)
+  // Next.js requires 'unsafe-inline' for hydration, but we can still add nonce for extra scripts
+  // Using strict-dynamic with nonce where possible
   const csp = isDev
     ? [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+        `script-src 'self' 'unsafe-eval' 'unsafe-inline' 'nonce-${nonce}'`,
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https:",
         "font-src 'self' data: https://fonts.gstatic.com",
@@ -82,18 +82,22 @@ export async function middleware(req: NextRequest) {
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",
+        "object-src 'none'",
       ].join('; ')
     : [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        // Production: strict-dynamic allows nonce-verified scripts to load other scripts
+        `script-src 'self' 'unsafe-inline' 'nonce-${nonce}' 'strict-dynamic'`,
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https:",
         "font-src 'self' data: https://fonts.gstatic.com",
-        "connect-src 'self'",
+        "connect-src 'self' https:",
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",
+        "object-src 'none'",
         "upgrade-insecure-requests",
+        "block-all-mixed-content",
       ].join('; ');
   
   response.headers.set('Content-Security-Policy', csp);

@@ -126,19 +126,15 @@ async function giveReferralBonus(referrerCode: string, newUsername: string): Pro
 export async function registerUser(data: RegisterData): Promise<SafeUserData> {
   const { username, email, password, referredBy } = data;
 
-  console.log('[REGISTER] Starting registration for:', { username, email });
-
   const existingUser = await findExistingUser(username, email);
-  console.log('[REGISTER] Existing user check:', { found: !!existingUser });
 
   if (existingUser) {
-    const field = existingUser.username === username ? 'Username' : 'Email';
-    throw new Error(`${field} already exists`);
+    // Generic error to prevent user enumeration
+    throw new Error('Username or email already exists');
   }
 
   const passwordHash = await hashPassword(password);
   const referralCode = generateReferralCode(username);
-  console.log('[REGISTER] Generated referral code:', referralCode);
 
   try {
     const user = await prisma.user.create({
@@ -151,16 +147,15 @@ export async function registerUser(data: RegisterData): Promise<SafeUserData> {
       },
       select: SAFE_USER_SELECT,
     });
-    console.log('[REGISTER] User created:', { id: user.id, username: user.username });
 
     if (referredBy) {
       await giveReferralBonus(referredBy, username);
     }
 
     return toSafeUserData(user);
-  } catch (dbError) {
-    console.error('[REGISTER] Database error:', dbError);
-    throw dbError;
+  } catch {
+    // Log error internally but don't expose details
+    throw new Error('Registration failed');
   }
 }
 

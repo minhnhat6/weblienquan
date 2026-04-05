@@ -72,15 +72,15 @@ describe('Input Validation', () => {
     });
 
     it('rejects password without uppercase', () => {
-      expect(validatePassword('abcdefg1!')).toBe('Mật khẩu phải có ít nhất 1 chữ in hoa');
+      expect(validatePassword('abcdefg1!')).toBe('Mật khẩu phải chứa chữ in hoa');
     });
 
     it('rejects password without number', () => {
-      expect(validatePassword('Abcdefgh!')).toBe('Mật khẩu phải có ít nhất 1 số');
+      expect(validatePassword('Abcdefgh!')).toBe('Mật khẩu phải chứa số');
     });
 
     it('rejects password without special char', () => {
-      expect(validatePassword('Abcdefgh1')).toBe('Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)');
+      expect(validatePassword('Abcdefgh1')).toBe('Mật khẩu phải chứa ký tự đặc biệt (!@#$%^&*...)');
     });
   });
 });

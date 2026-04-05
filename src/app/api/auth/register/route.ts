@@ -126,19 +126,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: { user } });
 
   } catch (error) {
-    // Log detailed error for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : '';
-    const errorName = error instanceof Error ? error.name : 'Unknown';
     
-    console.error('[REGISTER ERROR] Full details:', {
-      message: errorMessage,
-      stack: errorStack,
-      name: errorName,
-      // Log the full error object for database-specific errors
-      fullError: JSON.stringify(error, Object.getOwnPropertyNames(error as object), 2),
-    });
-    
+    // Log error securely (no console.log with sensitive data)
     logger.error('Register error', error as Error, { action: 'register' });
     
     // Record failed attempt for rate limiting
@@ -150,17 +140,13 @@ export async function POST(request: NextRequest) {
       return errorResponse('Username or email already registered', 409);
     }
 
-    // In production, check for specific database errors
+    // Check for database connection errors
     if (errorMessage.includes('connect') || errorMessage.includes('ECONNREFUSED') || errorMessage.includes('SSL') || errorMessage.includes('timeout')) {
-      console.error('[REGISTER] Database connection error detected');
       return errorResponse('Service temporarily unavailable. Please try again later.', 503);
     }
 
-    // Return more specific error in development/debugging
-    const debugError = process.env.NODE_ENV === 'development' 
-      ? errorMessage 
-      : ERROR.REGISTRATION_FAILED;
-    return errorResponse(debugError, 500);
+    // Always return generic error in production
+    return errorResponse(ERROR.REGISTRATION_FAILED, 500);
   }
 }
 

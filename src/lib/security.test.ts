@@ -27,19 +27,19 @@ describe('validatePassword', () => {
   });
 
   it('rejects passwords without uppercase', () => {
-    expect(validatePassword('abcdefg1!')).toBe('Mật khẩu phải có ít nhất 1 chữ in hoa');
+    expect(validatePassword('abcdefg1!')).toBe('Mật khẩu phải chứa chữ in hoa');
   });
 
   it('rejects passwords without lowercase', () => {
-    expect(validatePassword('ABCDEFG1!')).toBe('Mật khẩu phải có ít nhất 1 chữ thường');
+    expect(validatePassword('ABCDEFG1!')).toBe('Mật khẩu phải chứa chữ thường');
   });
 
   it('rejects passwords without numbers', () => {
-    expect(validatePassword('Abcdefgh!')).toBe('Mật khẩu phải có ít nhất 1 số');
+    expect(validatePassword('Abcdefgh!')).toBe('Mật khẩu phải chứa số');
   });
 
   it('rejects passwords without special characters', () => {
-    expect(validatePassword('Abcdefgh1')).toBe('Mật khẩu phải có ít nhất 1 ký tự đặc biệt (!@#$%^&*...)');
+    expect(validatePassword('Abcdefgh1')).toBe('Mật khẩu phải chứa ký tự đặc biệt (!@#$%^&*...)');
   });
 
   it('accepts valid strong passwords', () => {

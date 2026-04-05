@@ -31,9 +31,16 @@ function extractPath(input: RequestInfo | URL): string {
   return 'unknown';
 }
 
+// Store reference to the ORIGINAL fetch before it gets wrapped.
+// This is used by reportError so telemetry calls bypass the wrapper entirely.
+let _originalFetch: typeof fetch | null = null;
+
 async function reportError(payload: ErrorPayload): Promise<void> {
+  // Use the original unwrapped fetch to avoid going through our wrapper
+  // (which would log perf events for telemetry calls and risk loops)
+  const fetchFn = _originalFetch || fetch;
   try {
-    await fetch(TELEMETRY_ENDPOINT, {
+    await fetchFn(TELEMETRY_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -73,8 +80,14 @@ function createUnhandledRejectionHandler() {
 
 function createFetchWrapper(originalFetch: typeof fetch) {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const start = performance.now();
     const path = extractPath(input);
+
+    // Don't track/intercept telemetry calls at all — let them pass through directly
+    if (path.includes('/api/telemetry/')) {
+      return originalFetch(input, init);
+    }
+
+    const start = performance.now();
     const method = (init?.method || 'GET').toUpperCase();
 
     try {
@@ -84,11 +97,6 @@ function createFetchWrapper(originalFetch: typeof fetch) {
       logPerfEvent({ kind: 'http', path, method, status: response.status, ok: response.ok, durationMs });
 
       if (!response.ok) {
-        // Don't report telemetry endpoint failures to itself (prevents infinite loop)
-        if (path.includes('/api/telemetry/')) {
-          return response;
-        }
-
         const errPayload: ErrorPayload = {
           type: 'http.error',
           message: `HTTP ${response.status} at ${path}`,
@@ -128,6 +136,9 @@ export default function ErrorTracker() {
     const onUnhandledRejection = createUnhandledRejectionHandler();
     const originalFetch = window.fetch.bind(window);
     
+    // Save original fetch so reportError can use it directly
+    _originalFetch = originalFetch;
+    
     window.addEventListener('error', onWindowError);
     window.addEventListener('unhandledrejection', onUnhandledRejection);
     window.fetch = createFetchWrapper(originalFetch);
@@ -136,8 +147,10 @@ export default function ErrorTracker() {
       window.removeEventListener('error', onWindowError);
       window.removeEventListener('unhandledrejection', onUnhandledRejection);
       window.fetch = originalFetch;
+      _originalFetch = null;
     };
   }, []);
 
   return null;
 }
+

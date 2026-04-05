@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AdminLayout from '@/components/AdminLayout';
 import { useAuth } from '@/lib/auth';
 import { formatPrice, products } from '@/lib/data';
-import { getBusinessLogs, getErrorLogs, getPerfLogs } from '@/lib/observability';
+import { getBusinessLogs, getErrorLogs, getPerfLogs, clearObservabilityLogs } from '@/lib/observability';
 import { runReconciliation } from '@/lib/reconciliation';
 
 function StatCard({ icon, label, value, color, sub }: { icon: string; label: string; value: string; color: string; sub?: string }) {
@@ -172,7 +172,23 @@ export default function AdminDashboard() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
           <div style={{ background: '#1a1f35', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 12, padding: 20 }}>
-            <h3 style={{ margin: 0, marginBottom: 12, fontSize: 14, fontWeight: 700, color: '#fda4af' }}>🛑 Client Errors (mới nhất)</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fda4af' }}>🛑 Client Errors (mới nhất)</h3>
+              {errorLogs.length > 0 && (
+                <button
+                  onClick={() => { clearObservabilityLogs(); setRefreshKey(v => v + 1); }}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6,
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    background: 'rgba(239,68,68,0.1)',
+                    color: '#fda4af', fontSize: 11, fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  🗑️ Xóa tất cả
+                </button>
+              )}
+            </div>
             {errorLogs.length === 0 ? (
               <p style={{ color: '#6b7280', fontSize: 12, margin: 0 }}>Chưa ghi nhận lỗi client.</p>
             ) : (

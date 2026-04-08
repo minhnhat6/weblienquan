@@ -91,11 +91,6 @@ function HomeContent() {
   filteredProducts = filterProductsByRank(filteredProducts, rankParam);
 
   const handleBuy = (product: Product) => {
-    if (!user) {
-      showToast('Vui lòng đăng nhập để mua hàng!', 'error');
-      router.push('/client/login');
-      return;
-    }
     setQuantity(QUANTITY.DEFAULT);
     setBuyModal(product);
   };
@@ -412,7 +407,15 @@ function HomeContent() {
                 )}
               </div>
 
-              {user && user.balance < buyModal.price * quantity ? (
+              {!user ? (
+                <button
+                  className="btn btn-primary btn-block"
+                  onClick={() => { setBuyModal(null); router.push('/client/login'); }}
+                  style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', height: 50, fontSize: 16, fontWeight: 800, letterSpacing: 0.5, boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)', textTransform: 'uppercase' }}
+                >
+                  🔐 ĐĂNG NHẬP ĐỂ MUA HÀNG
+                </button>
+              ) : user.balance < buyModal.price * quantity ? (
                 <button
                   className="btn btn-primary btn-block"
                   onClick={() => router.push('/client/recharge')}
@@ -424,7 +427,7 @@ function HomeContent() {
                 <button
                   className="btn btn-primary btn-block"
                   onClick={confirmBuy}
-                  disabled={buying || !user}
+                  disabled={buying}
                   style={{ background: 'var(--gradient-main)', height: 50, fontSize: 16, fontWeight: 800, letterSpacing: 0.5, boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)', textTransform: 'uppercase' }}
                 >
                   {buying ? '⏳ ĐANG XỬ LÝ GIAO DỊCH...' : 'MUA & NHẬN ACC (AUTO 24/7)'}

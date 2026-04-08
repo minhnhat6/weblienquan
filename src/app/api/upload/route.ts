@@ -2,15 +2,15 @@ import { logger } from '@/lib/logger';
 /**
  * File Upload API
  * Handles image uploads for products (admin only)
+ * Storage: Supabase Storage (cloud) - compatible with Vercel serverless
  * Security: Validates magic bytes to prevent MIME spoofing
  */
 
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir, appendFile } from 'fs/promises';
-import { join, resolve } from 'path';
 import { randomBytes } from 'crypto';
 import { ADMIN_SESSION_COOKIE, verifyAdminSessionToken } from '@/lib/server-session';
 import { uploadRateLimiter } from '@/lib/rate-limiter';
+import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -45,29 +45,15 @@ const MAGIC_BYTES: Record<string, number[][]> = {
   ],
 };
 
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads');
-const LOGS_DIR = join(process.cwd(), '.runtime-logs');
-const AUDIT_LOG_FILE = join(LOGS_DIR, 'business-audit.log');
-
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
-interface AuditLogPayload {
-  type: string;
-  reason?: string;
-  [key: string]: unknown;
-}
+// Map MIME types to file extensions
+const MIME_TO_EXT: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+};
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-
-async function appendAuditLog(payload: AuditLogPayload): Promise<void> {
-  try {
-    await mkdir(LOGS_DIR, { recursive: true });
-    const entry = JSON.stringify({ ts: new Date().toISOString(), ...payload });
-    await appendFile(AUDIT_LOG_FILE, `${entry}\n`, 'utf8');
-  } catch {
-    // ignore logging failure
-  }
-}
 
 function normalizeFilename(original: string): string {
   // Remove path separators to prevent directory traversal
@@ -80,15 +66,19 @@ function normalizeFilename(original: string): string {
     .replace(/^[-.]+|[-.]+$/g, '') || 'upload-file';
 }
 
-function generateUniqueFilename(originalName: string): string {
-  // Use cryptographically secure random for unique suffix
+function generateUniqueFilename(originalName: string, mimeType: string): string {
   const uniqueSuffix = `${Date.now()}-${randomBytes(8).toString('hex')}`;
   const normalized = normalizeFilename(originalName);
+
+  // Remove existing extension and add correct one based on MIME type
+  const nameWithoutExt = normalized.replace(/\.[^.]+$/, '');
+  const ext = MIME_TO_EXT[mimeType] || '.bin';
+
   // Final validation: ensure no path traversal
-  if (normalized.includes('..') || normalized.includes('/') || normalized.includes('\\')) {
-    return `${uniqueSuffix}-upload-file`;
+  if (nameWithoutExt.includes('..') || nameWithoutExt.includes('/') || nameWithoutExt.includes('\\')) {
+    return `${uniqueSuffix}-upload-file${ext}`;
   }
-  return `${uniqueSuffix}-${normalized}`;
+  return `${uniqueSuffix}-${nameWithoutExt}${ext}`;
 }
 
 function extractSessionToken(cookieHeader: string): string {
@@ -139,7 +129,6 @@ function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
 function validateFile(file: File, buffer: Buffer): { valid: boolean; error?: string } {
   // Check MIME type first
   if (!ALLOWED_MIME_TYPES.has(file.type)) {
-    // Generic error to avoid leaking MIME type information
     return { valid: false, error: 'Định dạng file không hợp lệ. Chỉ chấp nhận: JPEG, PNG, WebP, GIF' };
   }
   
@@ -169,12 +158,6 @@ export async function POST(req: Request) {
     const session = await verifyAdminSessionToken(token);
 
     if (!session || session.role !== 'admin') {
-      await appendAuditLog({
-        type: 'upload.rejected',
-        reason: 'unauthorized',
-        hasToken: !!token,
-        hasValidSession: !!session,
-      });
       return errorResponse('Unauthorized: Valid admin session required', 401);
     }
 
@@ -182,11 +165,6 @@ export async function POST(req: Request) {
     const rateLimitKey = `upload:${session.username}`;
     const rateLimit = uploadRateLimiter.check(rateLimitKey);
     if (!rateLimit.allowed) {
-      await appendAuditLog({ 
-        type: 'upload.rejected', 
-        reason: 'rate-limited',
-        username: session.username,
-      });
       return errorResponse(`Quá nhiều upload. Vui lòng thử lại sau ${rateLimit.resetIn} giây`, 429);
     }
 
@@ -195,19 +173,14 @@ export async function POST(req: Request) {
     const files = data.getAll('file') as File[];
 
     if (!files || files.length === 0) {
-      await appendAuditLog({ type: 'upload.rejected', reason: 'no-file' });
       return errorResponse('Không tìm thấy file', 400);
     }
 
     if (files.length > MAX_FILE_COUNT) {
-      await appendAuditLog({ type: 'upload.rejected', reason: 'too-many-files', count: files.length });
       return errorResponse(`Tối đa ${MAX_FILE_COUNT} file mỗi lần upload`, 400);
     }
 
-    // Ensure upload directory exists
-    await mkdir(UPLOAD_DIR, { recursive: true }).catch(() => {});
-
-    // Process files
+    // Process files → upload to Supabase Storage
     const uploadedUrls: string[] = [];
 
     for (const file of files) {
@@ -217,50 +190,44 @@ export async function POST(req: Request) {
       
       const validation = validateFile(file, buffer);
       if (!validation.valid) {
-        await appendAuditLog({
-          type: 'upload.rejected',
-          reason: file.size > MAX_FILE_SIZE ? 'file-too-large' : 
-                  validation.error?.includes('giả mạo') ? 'magic-bytes-mismatch' : 'invalid-mime',
-          mime: file.type || 'unknown',
-          size: file.size,
-        });
         return errorResponse(validation.error!, 400);
       }
 
-      const filename = generateUniqueFilename(file.name);
-      const filePath = join(UPLOAD_DIR, filename);
+      const filename = generateUniqueFilename(file.name, file.type);
       
-      // Security: Verify the resolved path is within UPLOAD_DIR
-      const resolvedPath = resolve(filePath);
-      const resolvedUploadDir = resolve(UPLOAD_DIR);
-      if (!resolvedPath.startsWith(resolvedUploadDir + '/')) {
-        await appendAuditLog({
-          type: 'upload.rejected',
-          reason: 'path-traversal-attempt',
-          filename: file.name,
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .upload(filename, buffer, {
+          contentType: file.type,
+          upsert: false,
         });
-        return errorResponse('Invalid file path', 400);
+
+      if (uploadError) {
+        logger.error('Supabase upload error', new Error(uploadError.message), { 
+          action: 'file_upload',
+          metadata: { filename },
+        });
+        return errorResponse('Lỗi khi tải file lên storage', 500);
       }
 
-      await writeFile(filePath, buffer);
-      uploadedUrls.push(`/uploads/${filename}`);
+      // Get public URL
+      const { data: urlData } = supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(filename);
+
+      uploadedUrls.push(urlData.publicUrl);
     }
 
-    await appendAuditLog({
-      type: 'upload.completed',
-      count: uploadedUrls.length,
-      urls: uploadedUrls,
+    logger.info('File upload completed', { 
+      username: session.username,
+      metadata: { count: uploadedUrls.length },
     });
 
     return NextResponse.json({ success: true, urls: uploadedUrls });
 
   } catch (error) {
     logger.error('File upload error', error as Error, { action: 'file_upload' });
-    await appendAuditLog({
-      type: 'upload.rejected',
-      reason: 'server-error',
-      message: error instanceof Error ? error.message : String(error),
-    });
     return errorResponse('Đã có lỗi xảy ra khi upload file', 500);
   }
 }

@@ -104,29 +104,54 @@ body {
   position: sticky;
   top: 0;
   z-index: 1000;
-  background: var(--gradient-header);
-  border-bottom: 2px solid rgba(192, 132, 224, 0.4);
-  box-shadow: var(--shadow-header);
+  background: linear-gradient(180deg, rgba(15, 5, 30, 0.97) 0%, rgba(30, 10, 55, 0.95) 100%);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom: 1px solid rgba(192, 132, 224, 0.18);
+  box-shadow: 
+    0 1px 0 rgba(255, 193, 7, 0.08),
+    0 4px 24px rgba(0, 0, 0, 0.5),
+    0 1px 3px rgba(94, 18, 129, 0.3);
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 193, 7, 0.5) 20%, rgba(192, 132, 224, 0.6) 50%, rgba(255, 193, 7, 0.5) 80%, transparent 100%);
 }
 
 .header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 24px;
-  font-size: 12px;
-  color: var(--text-on-dark-muted);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.2);
+  padding: 5px 24px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.25);
+  letter-spacing: 0.3px;
+}
+
+.header-top span {
+  transition: color 0.2s;
+}
+
+.header-top span:hover {
+  color: rgba(255, 193, 7, 0.9);
 }
 
 .header-main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 24px;
+  padding: 8px 24px;
   max-width: 1400px;
   margin: 0 auto;
+  gap: 16px;
 }
 
 .logo {
@@ -143,27 +168,46 @@ body {
 
 .nav-links {
   display: flex;
-  gap: 2px;
+  gap: 1px;
   list-style: none;
   align-items: center;
 }
 
 .nav-links a {
-  color: var(--text-on-dark);
+  color: rgba(255, 255, 255, 0.78);
   text-decoration: none;
-  padding: 7px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  font-size: 12.5px;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  position: relative;
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 193, 7, 0), rgba(255, 193, 7, 0.8), rgba(255, 193, 7, 0));
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(-50%);
+  border-radius: 1px;
 }
 
 .nav-links a:hover {
-  background: rgba(255, 193, 7, 0.15);
   color: var(--gold-main);
+  background: rgba(255, 193, 7, 0.08);
+  text-shadow: 0 0 12px rgba(255, 193, 7, 0.3);
+}
+
+.nav-links a:hover::after {
+  width: 60%;
 }
 
 .nav-links .dropdown {
@@ -173,17 +217,29 @@ body {
 .nav-links .dropdown-menu {
   display: none;
   position: absolute;
-  top: 100%;
-  left: 0;
-  background: var(--purple-dark);
-  border: 1px solid rgba(192, 132, 224, 0.3);
-  border-radius: var(--radius);
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(22, 8, 42, 0.98) 0%, rgba(15, 5, 30, 0.98) 100%);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid rgba(192, 132, 224, 0.2);
+  border-radius: 12px;
   padding: 8px;
-  min-width: 220px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  min-width: 230px;
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 0 20px rgba(94, 18, 129, 0.15);
   z-index: 100;
   max-height: 400px;
   overflow-y: auto;
+  animation: dropdownFade 0.2s ease;
+}
+
+@keyframes dropdownFade {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 .nav-links .dropdown:hover .dropdown-menu {
@@ -192,18 +248,19 @@ body {
 
 .dropdown-menu a {
   display: block;
-  padding: 8px 12px;
+  padding: 9px 14px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85) !important;
-  border-radius: var(--radius-sm);
-  transition: all 0.15s;
+  color: rgba(255, 255, 255, 0.75) !important;
+  border-radius: 8px;
+  transition: all 0.2s;
   text-transform: none !important;
   letter-spacing: 0 !important;
 }
 
 .dropdown-menu a:hover {
-  background: rgba(255, 193, 7, 0.15) !important;
+  background: linear-gradient(90deg, rgba(255, 193, 7, 0.12), rgba(192, 132, 224, 0.08)) !important;
   color: var(--gold-main) !important;
+  padding-left: 18px;
 }
 
 /* ===== MEGA MENU ===== */
@@ -214,6 +271,8 @@ body {
   padding: 16px !important;
   grid-template-columns: repeat(4, 1fr);
   gap: 4px;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
 }
 
 .nav-links .dropdown:hover .mega-menu {
@@ -231,7 +290,7 @@ body {
   letter-spacing: 0.8px;
   color: var(--gold-main);
   padding: 6px 12px 4px;
-  border-bottom: 1px solid rgba(192, 132, 224, 0.2);
+  border-bottom: 1px solid rgba(192, 132, 224, 0.15);
   margin-bottom: 4px;
 }
 
@@ -239,41 +298,58 @@ body {
   display: block;
   padding: 6px 12px;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.75) !important;
+  color: rgba(255, 255, 255, 0.7) !important;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: all 0.2s;
   white-space: nowrap;
 }
 
 .mega-menu .mega-group a:hover {
-  background: rgba(255, 193, 7, 0.12) !important;
+  background: rgba(255, 193, 7, 0.1) !important;
   color: var(--gold-main) !important;
+  padding-left: 16px !important;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .wallet-badge {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 193, 7, 0.15);
-  border: 1px solid rgba(255, 193, 7, 0.4);
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.12), rgba(255, 193, 7, 0.06));
+  border: 1px solid rgba(255, 193, 7, 0.25);
   padding: 6px 14px;
   border-radius: 20px;
   font-size: 13px;
   font-weight: 700;
   color: var(--gold-light);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+
+.wallet-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .wallet-badge:hover {
-  background: rgba(255, 193, 7, 0.25);
-  box-shadow: 0 0 12px rgba(255, 193, 7, 0.3);
+  border-color: rgba(255, 193, 7, 0.5);
+  box-shadow: 0 0 16px rgba(255, 193, 7, 0.2);
+  transform: translateY(-1px);
+}
+
+.wallet-badge:hover::before {
+  opacity: 1;
 }
 
 .btn {
@@ -1941,18 +2017,30 @@ body {
 /* ===== MOBILE NAV ===== */
 .mobile-menu-btn {
   display: none;
-  background: none;
-  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   color: white;
-  font-size: 24px;
+  font-size: 22px;
   cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all 0.25s;
+  line-height: 1;
+}
+
+.mobile-menu-btn:hover {
+  background: rgba(255, 193, 7, 0.12);
+  border-color: rgba(255, 193, 7, 0.3);
+  color: var(--gold-main);
 }
 
 .mobile-nav {
   display: none;
   position: fixed;
   inset: 0;
-  background: var(--purple-deep);
+  background: linear-gradient(180deg, rgba(15, 5, 30, 0.98) 0%, rgba(25, 8, 48, 0.98) 100%);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
   z-index: 1500;
   padding: 60px 24px 24px;
   overflow-y: auto;
@@ -1960,23 +2048,42 @@ body {
 
 .mobile-nav.open {
   display: block;
+  animation: slideInRight 0.3s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 .mobile-nav-close {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  background: none;
-  border: none;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
-  font-size: 28px;
+  font-size: 22px;
   cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.mobile-nav-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
 }
 
 .mobile-nav a {
   display: block;
   padding: 12px 0;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
   font-size: 15px;
   font-weight: 600;

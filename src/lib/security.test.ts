@@ -21,31 +21,14 @@ describe('sanitizeInput', () => {
 });
 
 describe('validatePassword', () => {
-  it('rejects passwords shorter than 8 characters', () => {
-    expect(validatePassword('Abc1!')).toBe('Mật khẩu tối thiểu 8 ký tự');
-    expect(validatePassword('Abc12!')).toBe('Mật khẩu tối thiểu 8 ký tự');
+  it('rejects passwords shorter than 6 characters', () => {
+    expect(validatePassword('abc12')).toBe('Mật khẩu tối thiểu 6 ký tự');
   });
 
-  it('rejects passwords without uppercase', () => {
-    expect(validatePassword('abcdefg1!')).toBe('Mật khẩu phải chứa chữ in hoa');
-  });
-
-  it('rejects passwords without lowercase', () => {
-    expect(validatePassword('ABCDEFG1!')).toBe('Mật khẩu phải chứa chữ thường');
-  });
-
-  it('rejects passwords without numbers', () => {
-    expect(validatePassword('Abcdefgh!')).toBe('Mật khẩu phải chứa số');
-  });
-
-  it('rejects passwords without special characters', () => {
-    expect(validatePassword('Abcdefgh1')).toBe('Mật khẩu phải chứa ký tự đặc biệt (!@#$%^&*...)');
-  });
-
-  it('accepts valid strong passwords', () => {
-    expect(validatePassword('Abcdefg1!')).toBeNull();
-    expect(validatePassword('MyP@ssw0rd')).toBeNull();
-    expect(validatePassword('Str0ng!Pass')).toBeNull();
+  it('accepts passwords with 6+ characters', () => {
+    expect(validatePassword('abcdef')).toBeNull();
+    expect(validatePassword('123456')).toBeNull();
+    expect(validatePassword('abcDEF')).toBeNull();
   });
 
   it('rejects passwords longer than 64 characters', () => {

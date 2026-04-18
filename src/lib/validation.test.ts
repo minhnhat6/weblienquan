@@ -58,29 +58,21 @@ describe('Input Validation', () => {
 
   describe('validatePassword', () => {
     it('accepts valid passwords', () => {
-      // Updated to match new strong password requirements
-      expect(validatePassword('MyP@ss1234')).toBeNull();
-      expect(validatePassword('Str0ng!Pass')).toBeNull();
+      expect(validatePassword('abcdef')).toBeNull();
+      expect(validatePassword('123456')).toBeNull();
     });
 
     it('rejects password too short', () => {
-      expect(validatePassword('Ab1!')).toBe('Mật khẩu tối thiểu 8 ký tự');
+      expect(validatePassword('abc12')).toBe('Mật khẩu tối thiểu 6 ký tự');
     });
 
     it('rejects password too long', () => {
       expect(validatePassword('Aa1!' + 'a'.repeat(61))).toBe('Mật khẩu tối đa 64 ký tự');
     });
 
-    it('rejects password without uppercase', () => {
-      expect(validatePassword('abcdefg1!')).toBe('Mật khẩu phải chứa chữ in hoa');
-    });
-
-    it('rejects password without number', () => {
-      expect(validatePassword('Abcdefgh!')).toBe('Mật khẩu phải chứa số');
-    });
-
-    it('rejects password without special char', () => {
-      expect(validatePassword('Abcdefgh1')).toBe('Mật khẩu phải chứa ký tự đặc biệt (!@#$%^&*...)');
+    it('accepts mixed format without complexity rules', () => {
+      expect(validatePassword('abcdefg1')).toBeNull();
+      expect(validatePassword('ABCdefgh')).toBeNull();
     });
   });
 });

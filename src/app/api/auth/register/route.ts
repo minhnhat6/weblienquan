@@ -2,7 +2,7 @@ import { logger } from '@/lib/logger';
 /**
  * POST /api/auth/register - User Registration API
  * Uses bcrypt for password hashing
- * Security: Strong password validation + rate limiting
+ * Security: Password length validation + rate limiting
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       return errorResponse(emailError, 400);
     }
 
-    // Validate password strength (requires uppercase, lowercase, number, special char)
+    // Validate password policy (minimum 6 chars, maximum 64 chars)
     const passwordError = validatePassword(password);
     if (passwordError) {
       return errorResponse(passwordError, 400);
@@ -149,4 +149,3 @@ export async function POST(request: NextRequest) {
     return errorResponse(ERROR.REGISTRATION_FAILED, 500);
   }
 }
-

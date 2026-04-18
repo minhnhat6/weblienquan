@@ -38,6 +38,15 @@ const USER_SELECT = {
   },
 } as const;
 
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') return Number(value);
+  if (value && typeof value === 'object' && 'toNumber' in value && typeof (value as { toNumber: () => number }).toNumber === 'function') {
+    return (value as { toNumber: () => number }).toNumber();
+  }
+  return 0;
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 function errorResponse(error: string, status: number) {
@@ -113,10 +122,33 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ]);
 
+    const userIds = users.map(user => user.id);
+    const spendByUser = userIds.length > 0
+      ? await prisma.order.groupBy({
+          by: ['userId'],
+          where: {
+            userId: { in: userIds },
+            status: 'success',
+          },
+          _sum: {
+            amount: true,
+          },
+        })
+      : [];
+
+    const spendMap = new Map(
+      spendByUser.map(item => [item.userId, toNumber(item._sum.amount)]),
+    );
+    const usersWithStats = users.map(user => ({
+      ...user,
+      balance: toNumber(user.balance),
+      totalSpend: spendMap.get(user.id) ?? 0,
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
-        users,
+        users: usersWithStats,
         pagination: buildPagination(page, limit, total),
       },
     });

@@ -35,6 +35,8 @@ const ERROR = {
   INVALID_ROLE: 'Invalid role',
   PERMISSION_DENIED: 'Only super-admin can change user roles',
   INVALID_USER_ID: 'Invalid user ID format',
+  DELETE_FAILED: 'Failed to delete user',
+  CANNOT_DELETE_ADMIN: 'Cannot delete admin user',
 } as const;
 
 // UUID v4 regex for path parameter validation
@@ -270,5 +272,62 @@ export async function PUT(
   } catch (error) {
     logger.error('Update user error', error as Error, { action: 'update_user' });
     return errorResponse(ERROR.UPDATE_FAILED, 500);
+  }
+}
+
+// ─── DELETE Handler ──────────────────────────────────────────────────────────────
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await validateAdminSession(request);
+    if (!session) {
+      return errorResponse(ERROR.UNAUTHORIZED, 401);
+    }
+
+    const { id } = await params;
+    if (!isValidUserId(id)) {
+      return errorResponse(ERROR.INVALID_USER_ID, 400);
+    }
+
+    const superAdmin = process.env.ADMIN_USERNAME || 'admin';
+    if (session.username !== superAdmin) {
+      return errorResponse(ERROR.PERMISSION_DENIED, 403);
+    }
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id },
+      select: { id: true, username: true, role: true },
+    });
+
+    if (!targetUser) {
+      return errorResponse(ERROR.NOT_FOUND, 404);
+    }
+
+    if (targetUser.role === 'admin') {
+      return errorResponse(ERROR.CANNOT_DELETE_ADMIN, 403);
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.order.deleteMany({ where: { userId: id } });
+      await tx.transaction.deleteMany({ where: { userId: id } });
+      await tx.rechargeRequest.deleteMany({ where: { userId: id } });
+      await tx.consignmentItem.deleteMany({ where: { userId: id } });
+      await tx.user.delete({ where: { id } });
+    });
+
+    logBusinessEvent('user_deleted', {
+      userId: id,
+      username: targetUser.username,
+      deletedBy: session.username,
+      timestamp: new Date().toISOString(),
+    });
+
+    return NextResponse.json({ success: true, data: { id } });
+  } catch (error) {
+    logger.error('Delete user error', error as Error, { action: 'delete_user' });
+    return errorResponse(ERROR.DELETE_FAILED, 500);
   }
 }
